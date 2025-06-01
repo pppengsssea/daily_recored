@@ -141,7 +141,7 @@ def main():
             if data:
                 df = pd.DataFrame(data, columns=["日期","时间", "体重"])
                 df["日期"] = pd.to_datetime(df["日期"])
-                df["时间"] = pd.to_datetime(df["时间"])
+                # df["时间"] = pd.to_datetime(df["时间"])
                 df = df.sort_values("日期")
                 df.set_index("日期", inplace=True)
                 st.line_chart(df["体重"])
