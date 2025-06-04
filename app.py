@@ -2,6 +2,7 @@ import streamlit as st
 import sqlite3
 from datetime import datetime
 import pandas as pd
+import altair as alt
 import hashlib
 import hmac
 import secrets
@@ -92,7 +93,18 @@ def get_user_weights(username):
 
 @st.cache_data
 def convert_for_download(df):
-    return df.to_csv(index=True, encoding='utf-8')
+    return df.to_csv(index=False, encoding='utf-8')
+
+def draw_weight_chart(df):
+    # 计算 y 轴上下限，加一些 margin 以避免贴边
+    y_min = df["体重"].min()
+    y_max = df["体重"].max()
+    margin = (y_max - y_min) * 0.1  # 10% margin
+    chart = alt.Chart(df).mark_line(point=True).encode(
+        x='日期:T',
+        y=alt.Y('体重:Q', scale=alt.Scale(domain=[y_min - margin, y_max + margin]))
+    ).properties(title="体重变化曲线")
+    st.altair_chart(chart, use_container_width=True)
 
 # ========== 主程序 ==========
 def main():
@@ -148,7 +160,10 @@ def main():
             if st.button("提交记录"):
                 log_weight(st.session_state.username, date_of_measure.isoformat(), time_of_measure.isoformat(), weight)
                 st.success("记录已保存")
-        
+
+            st.markdown('---')
+            st.subheader('上传csv数据(暂未开放)')
+
         with tab2:
             st.subheader("体重趋势图")
             data = get_user_weights(st.session_state.username)
@@ -157,8 +172,9 @@ def main():
                 df["日期"] = pd.to_datetime(df["日期"])
                 # df["时间"] = pd.to_datetime(df["时间"])
                 df = df.sort_values("日期")
-                df.set_index("日期", inplace=True)
-                st.line_chart(df["体重"])
+                # df.set_index("日期", inplace=True)
+                # st.line_chart(df["体重"])
+                draw_weight_chart(df)
                 csv = convert_for_download(df)
                 st.download_button(
                     label="下载体重数据(csv)",
