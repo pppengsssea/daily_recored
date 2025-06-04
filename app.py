@@ -44,6 +44,14 @@ def init_db():
     conn.commit()
     conn.close()
 
+def get_user_count():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM users")
+    count = c.fetchone()[0]
+    conn.close()
+    return count
+
 def create_user(username, password):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -82,10 +90,16 @@ def get_user_weights(username):
     conn.close()
     return rows
 
+@st.cache_data
+def convert_for_download(df):
+    return df.to_csv(index=True, encoding='utf-8')
+
 # ========== 主程序 ==========
 def main():
     st.set_page_config(page_title="每日记录系统", page_icon="⚖️")
     init_db()
+    user_count = get_user_count()
+    # print(user_count)
 
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
@@ -104,17 +118,17 @@ def main():
                 st.rerun()
             else:
                 st.error("用户名或密码错误")
-
-        st.markdown("---")
-        st.subheader("注册新用户（仅限首次使用）")
-        new_user = st.text_input("新用户名")
-        new_pass = st.text_input("新密码", type="password")
-        if st.button("注册"):
-            if new_user and new_pass:
-                create_user(new_user, new_pass)
-                st.success("用户注册成功，请返回上方登录")
-            else:
-                st.warning("请输入用户名和密码")
+        if user_count < 2:
+            st.markdown("---")
+            st.subheader("注册新用户（仅限首次使用）")
+            new_user = st.text_input("新用户名")
+            new_pass = st.text_input("新密码", type="password")
+            if st.button("注册"):
+                if new_user and new_pass:
+                    create_user(new_user, new_pass)
+                    st.success("用户注册成功，请返回上方登录")
+                else:
+                    st.warning("请输入用户名和密码")
 
     else: # st.session_state.logged_in exist and is True
         st.title(f"欢迎，{st.session_state.username}")
@@ -145,6 +159,14 @@ def main():
                 df = df.sort_values("日期")
                 df.set_index("日期", inplace=True)
                 st.line_chart(df["体重"])
+                csv = convert_for_download(df)
+                st.download_button(
+                    label="下载体重数据(csv)",
+                    data=csv,
+                    file_name=f'{st.session_state.username}.csv',
+                    mime="text/csv",
+                    icon=":material/download:",
+                )
             else:
                 st.info("暂无体重记录，请先在“记录体重”页添加数据。")
 
